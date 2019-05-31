@@ -39,16 +39,21 @@ static struct logger logger;
  * @param[in] name Full path to the log file.
  * @return
  */
-int log_init(int level, char *name) {
+int log_init(int level, char *name)
+{
   struct logger *l = &logger;
 
   l->level = MAX(LOG_EMERG, MIN(level, LOG_PVERB));
   l->name = name;
-  if (name == NULL || !strlen(name)) {
+  if (name == NULL || !strlen(name))
+  {
     l->fd = STDERR_FILENO;
-  } else {
+  }
+  else
+  {
     l->fd = open(name, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (l->fd < 0) {
+    if (l->fd < 0)
+    {
       log_stderr("opening log file '%s' failed: %s", name, strerror(errno));
       return -1;
     }
@@ -60,72 +65,86 @@ int log_init(int level, char *name) {
 /**
  * Close the logging file descriptor.
  */
-void log_deinit(void) {
+void log_deinit(void)
+{
   struct logger *l = &logger;
 
-  if (l->fd < 0 || l->fd == STDERR_FILENO) {
+  if (l->fd < 0 || l->fd == STDERR_FILENO)
+  {
     return;
   }
 
   close(l->fd);
 }
 
-void log_reopen(void) {
+void log_reopen(void)
+{
   struct logger *l = &logger;
 
-  if (l->fd != STDERR_FILENO) {
+  if (l->fd != STDERR_FILENO)
+  {
     close(l->fd);
     l->fd = open(l->name, O_WRONLY | O_APPEND | O_CREAT, 0644);
-    if (l->fd < 0) {
+    if (l->fd < 0)
+    {
       log_stderr("reopening log file '%s' failed, ignored: %s", l->name,
                  strerror(errno));
     }
   }
 }
 
-void log_level_up(void) {
+void log_level_up(void)
+{
   struct logger *l = &logger;
 
-  if (l->level < LOG_PVERB) {
+  if (l->level < LOG_PVERB)
+  {
     l->level++;
     loga("up log level to %d", l->level);
   }
 }
 
-void log_level_down(void) {
+void log_level_down(void)
+{
   struct logger *l = &logger;
 
-  if (l->level > LOG_EMERG) {
+  if (l->level > LOG_EMERG)
+  {
     l->level--;
     loga("down log level to %d", l->level);
   }
 }
 
-void log_level_set(int level) {
+void log_level_set(int level)
+{
   struct logger *l = &logger;
 
   l->level = MAX(LOG_EMERG, MIN(level, LOG_PVERB));
   loga("set log level to %d", l->level);
 }
 
-int log_loggable(int level) {
+int log_loggable(int level)
+{
   struct logger *l = &logger;
 
-  if (level > l->level) {
+  if (level > l->level)
+  {
     return 0;
   }
 
   return 1;
 }
 
-void _log(const char *file, int line, int panic, const char *fmt, ...) {
+void _log(const char *file, int line, int panic, const char *fmt, ...)
+{
   struct logger *l = &logger;
   int len, size, errno_save;
   char buf[LOG_MAX_LEN];
   va_list args;
   ssize_t n;
 
-  if (l->fd < 0) {
+  if (l->fd < 0)
+  {
     return;
   }
 
@@ -153,20 +172,23 @@ void _log(const char *file, int line, int panic, const char *fmt, ...) {
   buf[len++] = '\n';
 
   n = dn_write(l->fd, buf, len);
-  if (n < 0) {
+  if (n < 0)
+  {
     l->nerror++;
   }
 
   errno = errno_save;
 
-  if (panic) {
+  if (panic)
+  {
     fsync(l->fd);
     close(l->fd);
     abort();
   }
 }
 
-void _log_stderr(const char *fmt, ...) {
+void _log_stderr(const char *fmt, ...)
+{
   struct logger *l = &logger;
   int len, size, errno_save;
   char buf[4 * LOG_MAX_LEN];
@@ -184,7 +206,8 @@ void _log_stderr(const char *fmt, ...) {
   buf[len++] = '\n';
 
   n = dn_write(STDERR_FILENO, buf, len);
-  if (n < 0) {
+  if (n < 0)
+  {
     l->nerror++;
   }
 
@@ -196,13 +219,15 @@ void _log_stderr(const char *fmt, ...) {
  * See -C option in man hexdump
  */
 void _log_hexdump(const char *file, int line, char *data, int datalen,
-                  const char *fmt, ...) {
+                  const char *fmt, ...)
+{
   struct logger *l = &logger;
   char buf[8 * LOG_MAX_LEN];
   int i, off, len, size, errno_save;
   ssize_t n;
 
-  if (l->fd < 0) {
+  if (l->fd < 0)
+  {
     return;
   }
 
@@ -212,7 +237,8 @@ void _log_hexdump(const char *file, int line, char *data, int datalen,
   len = 0;                /* length of output buffer */
   size = 8 * LOG_MAX_LEN; /* size of output buffer */
 
-  while (datalen != 0 && (len < size - 1)) {
+  while (datalen != 0 && (len < size - 1))
+  {
     char *save, *str;
     unsigned char c;
     int savelen;
@@ -222,12 +248,14 @@ void _log_hexdump(const char *file, int line, char *data, int datalen,
     save = data;
     savelen = datalen;
 
-    for (i = 0; datalen != 0 && i < 16; data++, datalen--, i++) {
+    for (i = 0; datalen != 0 && i < 16; data++, datalen--, i++)
+    {
       c = (unsigned char)(*data);
       str = (i == 7) ? "  " : " ";
       len += dn_scnprintf(buf + len, size - len, "%02x%s", c, str);
     }
-    for (; i < 16; i++) {
+    for (; i < 16; i++)
+    {
       str = (i == 7) ? "  " : " ";
       len += dn_scnprintf(buf + len, size - len, "  %s", str);
     }
@@ -237,7 +265,8 @@ void _log_hexdump(const char *file, int line, char *data, int datalen,
 
     len += dn_scnprintf(buf + len, size - len, "  |");
 
-    for (i = 0; datalen != 0 && i < 16; data++, datalen--, i++) {
+    for (i = 0; datalen != 0 && i < 16; data++, datalen--, i++)
+    {
       c = (unsigned char)(isprint(*data) ? *data : '.');
       len += dn_scnprintf(buf + len, size - len, "%c", c);
     }
@@ -247,7 +276,8 @@ void _log_hexdump(const char *file, int line, char *data, int datalen,
   }
 
   n = dn_write(l->fd, buf, len);
-  if (n < 0) {
+  if (n < 0)
+  {
     l->nerror++;
   }
 

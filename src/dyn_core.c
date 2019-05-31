@@ -34,25 +34,31 @@
 #include "event/dyn_event.h"
 uint32_t admin_opt = 0;
 
-static void core_print_peer_status(void *arg1) {
+static void core_print_peer_status(void *arg1)
+{
   struct context *ctx = arg1;
   struct server_pool *sp = &ctx->pool;
   // iterate over all peers
   uint32_t dc_cnt = array_n(&sp->datacenters);
   uint32_t dc_index;
-  for (dc_index = 0; dc_index < dc_cnt; dc_index++) {
+  for (dc_index = 0; dc_index < dc_cnt; dc_index++)
+  {
     struct datacenter *dc = array_get(&sp->datacenters, dc_index);
-    if (!dc) log_panic("DC is null. Topology not inited proerly");
+    if (!dc)
+      log_panic("DC is null. Topology not inited proerly");
     uint8_t rack_cnt = (uint8_t)array_n(&dc->racks);
     uint8_t rack_index;
-    for (rack_index = 0; rack_index < rack_cnt; rack_index++) {
+    for (rack_index = 0; rack_index < rack_cnt; rack_index++)
+    {
       struct rack *rack = array_get(&dc->racks, rack_index);
       uint8_t i = 0;
-      for (i = 0; i < rack->ncontinuum; i++) {
+      for (i = 0; i < rack->ncontinuum; i++)
+      {
         struct continuum *c = &rack->continuum[i];
         uint32_t peer_index = c->index;
         struct node *peer = *(struct node **)array_get(&sp->peers, peer_index);
-        if (!peer) log_panic("peer is null. Topology not inited proerly");
+        if (!peer)
+          log_panic("peer is null. Topology not inited proerly");
 
         log_notice("%u)%p %.*s %.*s %.*s %s", peer_index, peer, dc->name->len,
                    dc->name->data, rack->name->len, rack->name->data,
@@ -63,14 +69,16 @@ static void core_print_peer_status(void *arg1) {
   }
 }
 
-void core_set_local_state(struct context *ctx, dyn_state_t state) {
+void core_set_local_state(struct context *ctx, dyn_state_t state)
+{
   struct server_pool *sp = &ctx->pool;
   struct node *peer = *(struct node **)array_get(&sp->peers, 0);
   ctx->dyn_state = state;
   peer->state = state;
 }
 
-static rstatus_t core_init_last(struct context *ctx) {
+static rstatus_t core_init_last(struct context *ctx)
+{
   core_debug(ctx);
   preselect_remote_rack_for_replication(ctx);
   // Print the network health once after 30 secs
@@ -78,7 +86,8 @@ static rstatus_t core_init_last(struct context *ctx) {
   return DN_OK;
 }
 
-static rstatus_t core_gossip_pool_init(struct context *ctx) {
+static rstatus_t core_gossip_pool_init(struct context *ctx)
+{
   // init ring msg queue
   CBUF_Init(C2G_InQ);
   CBUF_Init(C2G_OutQ);
@@ -87,42 +96,49 @@ static rstatus_t core_gossip_pool_init(struct context *ctx) {
   return DN_OK;
 }
 
-static rstatus_t core_dnode_peer_pool_preconnect(struct context *ctx) {
+static rstatus_t core_dnode_peer_pool_preconnect(struct context *ctx)
+{
   rstatus_t status = dnode_peer_pool_preconnect(ctx);
   IGNORE_RET_VAL(status);
   return status;
 }
-static rstatus_t core_dnode_peer_init(struct context *ctx) {
+static rstatus_t core_dnode_peer_init(struct context *ctx)
+{
   /* initialize peers */
   THROW_STATUS(dnode_initialize_peers(ctx));
   return DN_OK;
 }
 
-static rstatus_t core_dnode_proxy_init(struct context *ctx) {
+static rstatus_t core_dnode_proxy_init(struct context *ctx)
+{
   /* initialize dnode listener per server pool */
   THROW_STATUS(dnode_proxy_init(ctx));
 
-  ctx->dyn_state = JOINING;  // TODOS: change this to JOINING
+  ctx->dyn_state = JOINING; // TODOS: change this to JOINING
   return DN_OK;
 }
 
-static rstatus_t core_proxy_init(struct context *ctx) {
+static rstatus_t core_proxy_init(struct context *ctx)
+{
   /* initialize proxy per server pool */
   THROW_STATUS(proxy_init(ctx));
   return DN_OK;
 }
 
-static rstatus_t core_server_pool_preconnect(struct context *ctx) {
+static rstatus_t core_server_pool_preconnect(struct context *ctx)
+{
   rstatus_t status = server_pool_preconnect(ctx);
   IGNORE_RET_VAL(status);
 
   return DN_OK;
 }
 
-static rstatus_t core_event_base_create(struct context *ctx) {
+static rstatus_t core_event_base_create(struct context *ctx)
+{
   /* initialize event handling for client, proxy and server */
   ctx->evb = event_base_create(EVENT_SIZE, &core_core);
-  if (ctx->evb == NULL) {
+  if (ctx->evb == NULL)
+  {
     log_error("Failed to create socket event handling!!!");
     return DN_ERROR;
   }
@@ -134,11 +150,13 @@ static rstatus_t core_event_base_create(struct context *ctx) {
  * @param[in,out] ctx Context.
  * @return rstatus_t Return status code.
  */
-static rstatus_t core_entropy_init(struct context *ctx) {
+static rstatus_t core_entropy_init(struct context *ctx)
+{
   struct instance *nci = ctx->instance;
   /* initializing anti-entropy */
   ctx->entropy = entropy_init(ctx, nci->entropy_port, nci->entropy_addr);
-  if (ctx->entropy == NULL) {
+  if (ctx->entropy == NULL)
+  {
     log_error("Failed to create entropy!!!");
   }
 
@@ -151,13 +169,15 @@ static rstatus_t core_entropy_init(struct context *ctx) {
  * @param[in,out] ctx Context.
  * @return rstatus_t Return status code.
  */
-static rstatus_t core_stats_create(struct context *ctx) {
+static rstatus_t core_stats_create(struct context *ctx)
+{
   struct instance *nci = ctx->instance;
   struct server_pool *sp = &ctx->pool;
 
   ctx->stats = stats_create(sp->stats_endpoint.port, sp->stats_endpoint.pname,
                             sp->stats_interval, nci->hostname, &ctx->pool, ctx);
-  if (ctx->stats == NULL) {
+  if (ctx->stats == NULL)
+  {
     log_error("Failed to create stats!!!");
     return DN_ERROR;
   }
@@ -170,7 +190,8 @@ static rstatus_t core_stats_create(struct context *ctx) {
  * @param[in,out] ctx Dynomite server context.
  * @return rstatus_t Return status code.
  */
-static rstatus_t core_crypto_init(struct context *ctx) {
+static rstatus_t core_crypto_init(struct context *ctx)
+{
   /* crypto init */
   THROW_STATUS(crypto_init(&ctx->pool));
   return DN_OK;
@@ -181,7 +202,8 @@ static rstatus_t core_crypto_init(struct context *ctx) {
  * @param[in,out] ctx Context.
  * @return rstatus_t Return status code.
  */
-static rstatus_t core_server_pool_init(struct context *ctx) {
+static rstatus_t core_server_pool_init(struct context *ctx)
+{
   THROW_STATUS(server_pool_init(&ctx->pool, &ctx->cf->pool, ctx));
   return DN_OK;
 }
@@ -191,13 +213,15 @@ static rstatus_t core_server_pool_init(struct context *ctx) {
  * @param[in,out] nci Dynomite instance.
  * @return rstatus_t Return status code.
  */
-static rstatus_t core_ctx_create(struct instance *nci) {
+static rstatus_t core_ctx_create(struct instance *nci)
+{
   struct context *ctx;
 
   srand((unsigned)time(NULL));
 
   ctx = dn_alloc(sizeof(*ctx));
-  if (ctx == NULL) {
+  if (ctx == NULL)
+  {
     loga("Failed to create context!!!");
     return DN_ERROR;
   }
@@ -212,7 +236,8 @@ static rstatus_t core_ctx_create(struct instance *nci) {
 
   /* parse and create configuration */
   ctx->cf = conf_create(nci->conf_filename);
-  if (ctx->cf == NULL) {
+  if (ctx->cf == NULL)
+  {
     loga("Failed to create conf!!!");
     dn_free(ctx);
     return DN_ERROR;
@@ -225,7 +250,8 @@ static rstatus_t core_ctx_create(struct instance *nci) {
   return DN_OK;
 }
 
-static void core_ctx_destroy(struct context *ctx) {
+static void core_ctx_destroy(struct context *ctx)
+{
   proxy_deinit(ctx);
   server_pool_disconnect(ctx);
   event_base_destroy(ctx->evb);
@@ -240,12 +266,14 @@ static void core_ctx_destroy(struct context *ctx) {
  * @param[in] nci Dynomite instance.
  * @return rstatus_t Return status code.
  */
-rstatus_t core_start(struct instance *nci) {
+rstatus_t core_start(struct instance *nci)
+{
   conn_init();
   task_mgr_init();
 
   rstatus_t status = core_ctx_create(nci);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
@@ -253,57 +281,68 @@ rstatus_t core_start(struct instance *nci) {
   ASSERT(ctx != NULL);
 
   status = core_server_pool_init(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_crypto_init(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_stats_create(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_entropy_init(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_event_base_create(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_server_pool_preconnect(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_proxy_init(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_dnode_proxy_init(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_dnode_peer_init(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_dnode_peer_pool_preconnect(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
 
   status = core_init_last(ctx);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     goto error;
   }
   // XXX: Gossip is currently not maintained actively, so ignore any failures.
@@ -317,18 +356,24 @@ rstatus_t core_start(struct instance *nci) {
    */
   struct server_pool *sp = &ctx->pool;
 
-  if (sp->mbuf_size == UNSET_NUM) {
+  if (sp->mbuf_size == UNSET_NUM)
+  {
     loga("mbuf_size not in YAML: using deprecated way  %d",
          nci->mbuf_chunk_size);
     mbuf_init(nci->mbuf_chunk_size);
-  } else {
+  }
+  else
+  {
     loga("YAML provided mbuf_size: %d", sp->mbuf_size);
     mbuf_init(sp->mbuf_size);
   }
-  if (sp->alloc_msgs_max == UNSET_NUM) {
+  if (sp->alloc_msgs_max == UNSET_NUM)
+  {
     loga("max_msgs not in YAML: using deprecated way %d", nci->alloc_msgs_max);
     msg_init(nci->alloc_msgs_max);
-  } else {
+  }
+  else
+  {
     loga("YAML provided max_msgs: %d", sp->alloc_msgs_max);
     msg_init(sp->alloc_msgs_max);
   }
@@ -338,26 +383,32 @@ rstatus_t core_start(struct instance *nci) {
 error:
   // If we hit an error, undo everything in the reverse order as it was setup to maintain
   // symmetric setup/teardown semantics.
-  if (ctx != NULL) {
+  if (ctx != NULL)
+  {
     //gossip_pool_deinit(ctx);   // XXX: Gossip not actively maintained.
     dnode_peer_pool_disconnect(ctx);
     dnode_peer_deinit(&ctx->pool.peers);
     dnode_proxy_deinit(ctx);
     proxy_deinit(ctx);
     server_pool_disconnect(ctx);
-    if (ctx->evb) event_base_destroy(ctx->evb);
-    if (ctx->entropy) entropy_conn_destroy(ctx->entropy);
-    if (ctx->stats) stats_destroy(ctx->stats);
+    if (ctx->evb)
+      event_base_destroy(ctx->evb);
+    if (ctx->entropy)
+      entropy_conn_destroy(ctx->entropy);
+    if (ctx->stats)
+      stats_destroy(ctx->stats);
     crypto_deinit();
     server_pool_deinit(&ctx->pool);
-    if (ctx->cf) conf_destroy(ctx->cf);
+    if (ctx->cf)
+      conf_destroy(ctx->cf);
     dn_free(ctx);
   }
   conn_deinit();
   return status;
 }
 
-char *print_server_pool(const struct object *obj) {
+char *print_server_pool(const struct object *obj)
+{
   ASSERT(obj->type == OBJ_POOL);
   struct server_pool *sp = (struct server_pool *)obj;
   snprintf(obj->print_buff, PRINT_BUF_SIZE, "<POOL %p '%.*s'>", sp,
@@ -370,7 +421,8 @@ char *print_server_pool(const struct object *obj) {
  * context.
  * @param[in] ctx Dynomite process context.
  */
-void core_stop(struct context *ctx) {
+void core_stop(struct context *ctx)
+{
   conn_deinit();
   msg_deinit();
   dmsg_deinit();
@@ -378,29 +430,34 @@ void core_stop(struct context *ctx) {
   core_ctx_destroy(ctx);
 }
 
-static rstatus_t core_recv(struct context *ctx, struct conn *conn) {
+static rstatus_t core_recv(struct context *ctx, struct conn *conn)
+{
   rstatus_t status;
 
   status = conn_recv(ctx, conn);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     log_info("%s recv failed: %s", print_obj(conn), strerror(errno));
   }
 
   return status;
 }
 
-static rstatus_t core_send(struct context *ctx, struct conn *conn) {
+static rstatus_t core_send(struct context *ctx, struct conn *conn)
+{
   rstatus_t status;
 
   status = conn_send(ctx, conn);
-  if (status != DN_OK) {
+  if (status != DN_OK)
+  {
     log_info("%s send failed: %s", print_obj(conn), strerror(errno));
   }
 
   return status;
 }
 
-static void core_close(struct context *ctx, struct conn *conn) {
+static void core_close(struct context *ctx, struct conn *conn)
+{
   rstatus_t status;
 
   ASSERT(conn->sd > 0);
@@ -414,7 +471,8 @@ static void core_close(struct context *ctx, struct conn *conn) {
             conn->err ? strerror(conn->err) : "");
 
   status = conn_event_del_conn(conn);
-  if (status < 0) {
+  if (status < 0)
+  {
     log_warn("event del conn %d failed, ignored: %s", conn->sd,
              strerror(errno));
   }
@@ -422,11 +480,13 @@ static void core_close(struct context *ctx, struct conn *conn) {
   conn_close(ctx, conn);
 }
 
-static void core_error(struct context *ctx, struct conn *conn) {
+static void core_error(struct context *ctx, struct conn *conn)
+{
   rstatus_t status;
 
   status = dn_get_soerror(conn->sd);
-  if (status < 0) {
+  if (status < 0)
+  {
     log_warn("get soerr on %s failed, ignored: %s", print_obj(conn),
              strerror(errno));
   }
@@ -435,21 +495,25 @@ static void core_error(struct context *ctx, struct conn *conn) {
   core_close(ctx, conn);
 }
 
-static void core_timeout(struct context *ctx) {
-  for (;;) {
+static void core_timeout(struct context *ctx)
+{
+  for (;;)
+  {
     struct msg *req;
     struct conn *conn;
     msec_t now, then;
 
     req = msg_tmo_min();
-    if (req == NULL) {
+    if (req == NULL)
+    {
       ctx->timeout = ctx->max_timeout;
       return;
     }
 
     /* skip over req that are in-error or done */
 
-    if (req->is_error || req->done) {
+    if (req->is_error || req->done)
+    {
       msg_tmo_delete(req);
       continue;
     }
@@ -463,7 +527,8 @@ static void core_timeout(struct context *ctx) {
     then = req->tmo_rbe.key;
 
     now = dn_msec_now();
-    if (now < then) {
+    if (now < then)
+    {
       msec_t delta = (msec_t)(then - now);
       ctx->timeout = MIN(delta, ctx->max_timeout);
       return;
@@ -474,15 +539,20 @@ static void core_timeout(struct context *ctx) {
 
     msg_tmo_delete(req);
 
-    if (conn->dyn_mode) {
-      if (conn->type == CONN_DNODE_PEER_SERVER) {  // outgoing peer requests
+    if (conn->dyn_mode)
+    {
+      if (conn->type == CONN_DNODE_PEER_SERVER)
+      { // outgoing peer requests
         if (conn->same_dc)
           stats_pool_incr(ctx, peer_timedout_requests);
         else
           stats_pool_incr(ctx, remote_peer_timedout_requests);
       }
-    } else {
-      if (conn->type == CONN_SERVER) {  // storage server requests
+    }
+    else
+    {
+      if (conn->type == CONN_SERVER)
+      { // storage server requests
         stats_server_incr(ctx, server_dropped_requests);
       }
     }
@@ -493,7 +563,8 @@ static void core_timeout(struct context *ctx) {
   }
 }
 
-rstatus_t core_core(void *arg, uint32_t events) {
+rstatus_t core_core(void *arg, uint32_t events)
+{
   rstatus_t status;
   struct conn *conn = arg;
   struct context *ctx = conn_to_ctx(conn);
@@ -503,8 +574,10 @@ rstatus_t core_core(void *arg, uint32_t events) {
   conn->events = events;
 
   /* error takes precedence over read | write */
-  if (events & EVENT_ERR) {
-    if (conn->err && conn->dyn_mode) {
+  if (events & EVENT_ERR)
+  {
+    if (conn->err && conn->dyn_mode)
+    {
       loga("conn err on dnode EVENT_ERR: %d", conn->err);
     }
     core_error(ctx, conn);
@@ -513,12 +586,16 @@ rstatus_t core_core(void *arg, uint32_t events) {
   }
 
   /* read takes precedence over write */
-  if (events & EVENT_READ) {
+  if (events & EVENT_READ)
+  {
     status = core_recv(ctx, conn);
 
-    if (status != DN_OK || conn->done || conn->err) {
-      if (conn->dyn_mode) {
-        if (conn->err) {
+    if (status != DN_OK || conn->done || conn->err)
+    {
+      if (conn->dyn_mode)
+      {
+        if (conn->err)
+        {
           loga("conn err on dnode EVENT_READ: %d", conn->err);
           core_close(ctx, conn);
           return DN_ERROR;
@@ -532,11 +609,15 @@ rstatus_t core_core(void *arg, uint32_t events) {
     }
   }
 
-  if (events & EVENT_WRITE) {
+  if (events & EVENT_WRITE)
+  {
     status = core_send(ctx, conn);
-    if (status != DN_OK || conn->done || conn->err) {
-      if (conn->dyn_mode) {
-        if (conn->err) {
+    if (status != DN_OK || conn->done || conn->err)
+    {
+      if (conn->dyn_mode)
+      {
+        if (conn->err)
+        {
           loga("conn err on dnode EVENT_WRITE: %d", conn->err);
           core_close(ctx, conn);
           return DN_ERROR;
@@ -552,12 +633,14 @@ rstatus_t core_core(void *arg, uint32_t events) {
   return DN_OK;
 }
 
-void core_debug(struct context *ctx) {
+void core_debug(struct context *ctx)
+{
   log_debug(LOG_VERB, "=====================Peers info=====================");
   struct server_pool *sp = &ctx->pool;
   log_debug(LOG_VERB, "Server pool          : '%.*s'", sp->name);
   uint32_t j, n;
-  for (j = 0, n = array_n(&sp->peers); j < n; j++) {
+  for (j = 0, n = array_n(&sp->peers); j < n; j++)
+  {
     log_debug(LOG_VERB, "==============================================");
     struct node *peer = *(struct node **)array_get(&sp->peers, j);
     log_debug(LOG_VERB, "\tPeer DC            : '%.*s'", peer->dc);
@@ -575,7 +658,8 @@ void core_debug(struct context *ctx) {
     log_debug(LOG_VERB, "\tPeer num tokens    : %d", array_n(&peer->tokens));
 
     uint32_t k;
-    for (k = 0; k < array_n(&peer->tokens); k++) {
+    for (k = 0; k < array_n(&peer->tokens); k++)
+    {
       struct dyn_token *token = (struct dyn_token *)array_get(&peer->tokens, k);
       print_dyn_token(token, 12);
     }
@@ -586,13 +670,15 @@ void core_debug(struct context *ctx) {
             ".................................................");
   uint32_t dc_index, dc_len;
   for (dc_index = 0, dc_len = array_n(&sp->datacenters); dc_index < dc_len;
-       dc_index++) {
+       dc_index++)
+  {
     struct datacenter *dc = array_get(&sp->datacenters, dc_index);
     log_debug(LOG_VERB, "Peer datacenter........'%.*s'", dc->name->len,
               dc->name->data);
     uint32_t rack_index, rack_len;
     for (rack_index = 0, rack_len = array_n(&dc->racks); rack_index < rack_len;
-         rack_index++) {
+         rack_index++)
+    {
       struct rack *rack = array_get(&dc->racks, rack_index);
       log_debug(LOG_VERB, "\tPeer rack........'%.*s'", rack->name->len,
                 rack->name->data);
@@ -610,14 +696,17 @@ void core_debug(struct context *ctx) {
  * Process elements in the circular buffer.
  * @return rstatus_t Return status code.
  */
-static rstatus_t core_process_messages(void) {
+static rstatus_t core_process_messages(void)
+{
   log_debug(LOG_VVVERB, "length of C2G_OutQ : %d", CBUF_Len(C2G_OutQ));
 
   // Continue to process messages while the circular buffer is not empty
-  while (!CBUF_IsEmpty(C2G_OutQ)) {
+  while (!CBUF_IsEmpty(C2G_OutQ))
+  {
     // Get an element from the beginning of the circular buffer
     struct ring_msg *ring_msg = (struct ring_msg *)CBUF_Pop(C2G_OutQ);
-    if (ring_msg != NULL && ring_msg->cb != NULL) {
+    if (ring_msg != NULL && ring_msg->cb != NULL)
+    {
       // CBUF_Push
       // ./src/dyn_dnode_msg.c
       // ./src/dyn_gossip.c
@@ -635,7 +724,8 @@ static rstatus_t core_process_messages(void) {
  * @param[in] ctx Dynomite process context.
  * @return rstatus_t Return status code.
  */
-rstatus_t core_loop(struct context *ctx) {
+rstatus_t core_loop(struct context *ctx)
+{
   int nsd;
 
   core_process_messages();
@@ -644,7 +734,8 @@ rstatus_t core_loop(struct context *ctx) {
   execute_expired_tasks(0);
   ctx->timeout = MIN(ctx->timeout, time_to_next_task());
   nsd = event_wait(ctx->evb, (int)ctx->timeout);
-  if (nsd < 0) {
+  if (nsd < 0)
+  {
     return nsd;
   }
 
